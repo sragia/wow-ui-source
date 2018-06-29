@@ -18,10 +18,21 @@ local QuestLog =
 		{
 			Name = "GetMaxNumQuests",
 			Type = "Function",
+			Documentation = { "This is the maximum number of quests a player can be on, including hidden quests, world quests, emissaries etc" },
 
 			Returns =
 			{
 				{ Name = "maxNumQuests", Type = "number", Nilable = false },
+			},
+		},
+		{
+			Name = "GetMaxNumQuestsCanAccept",
+			Type = "Function",
+			Documentation = { "This is the maximum number of standard quests a player can accept. These are quests that are normally visible in the quest log." },
+
+			Returns =
+			{
+				{ Name = "maxNumQuestsCanAccept", Type = "number", Nilable = false },
 			},
 		},
 		{
