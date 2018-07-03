@@ -107,6 +107,20 @@ local QuestLog =
 			},
 		},
 		{
+			Name = "QuestHasWarModeBonus",
+			Type = "Function",
+
+			Arguments =
+			{
+				{ Name = "questID", Type = "number", Nilable = false },
+			},
+
+			Returns =
+			{
+				{ Name = "hasBonus", Type = "bool", Nilable = false },
+			},
+		},
+		{
 			Name = "SetMapForQuestPOIs",
 			Type = "Function",
 
