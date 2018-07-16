@@ -86,6 +86,44 @@ local CHARACTER_COLUMN_INFO = {
 	},
 };
 
+local GUILD_COLUMN_INFO = {
+	[1] = {
+		title = COMMUNITIES_ROSTER_COLUMN_TITLE_LEVEL,
+		width = 40,
+		attribute = "level",
+	},
+	
+	[2] = {
+		title = COMMUNITIES_ROSTER_COLUMN_TITLE_CLASS,
+		width = 45,
+		attribute = "classID",
+	},
+	
+	[3] = {
+		title = COMMUNITIES_ROSTER_COLUMN_TITLE_NAME,
+		width = 100,
+		attribute = "name",
+	},
+	
+	[4] = {
+		title = COMMUNITIES_ROSTER_COLUMN_TITLE_ZONE,
+		width = 100,
+		attribute = "zone",
+	},
+	
+	[5] = {
+		title = COMMUNITIES_ROSTER_COLUMN_TITLE_RANK,
+		width = 85,
+		attribute = "guildRankOrder",
+	},
+	
+	[6] = {
+		title = COMMUNITIES_ROSTER_COLUMN_TITLE_NOTE,
+		width = 0,
+		attribute = "memberNote",
+	},
+};
+
 local EXTRA_GUILD_COLUMN_ACHIEVEMENT = 1;
 local EXTRA_GUILD_COLUMN_PROFESSION = 2;
 local EXTRA_GUILD_COLUMNS = {
@@ -107,7 +145,12 @@ local EXTRA_GUILD_COLUMNS = {
 CommunitiesMemberListMixin = {};
 
 function CommunitiesMemberListMixin:OnClubSelected(clubId)
+	self:ResetColumnSort();
+end
+
+function CommunitiesMemberListMixin:ResetColumnSort()
 	self.activeColumnSortIndex = nil;
+	self.reverseActiveColumnSort = nil;
 end
 
 function CommunitiesMemberListMixin:SetVoiceChannel(voiceChannel)
@@ -351,7 +394,13 @@ function CommunitiesMemberListMixin:ClearMemberListDirty()
 end
 
 function CommunitiesMemberListMixin:SortList()
-	CommunitiesUtil.SortMemberInfo(self.sortedMemberList);
+	if self.activeColumnSortIndex then
+		local keepSortDirection = true;
+		self:SortByColumnIndex(self.activeColumnSortIndex, keepSortDirection);
+	else
+		CommunitiesUtil.SortMemberInfo(self.sortedMemberList);
+	end
+	
 	if self:IsDisplayingProfessions() then
 		self:UpdateProfessionDisplay();
 	end
@@ -439,6 +488,7 @@ end
 
 function CommunitiesMemberListMixin:SetExpandedDisplay(expandedDisplay)
 	self.expandedDisplay = expandedDisplay;
+	self:ResetColumnSort();
 	self:UpdateMemberList();
 	
 	if expandedDisplay then
@@ -461,6 +511,7 @@ end
 function CommunitiesMemberListMixin:SetShowOfflinePlayers(showOfflinePlayers)
 	self.showOfflinePlayers = showOfflinePlayers;
 	SetCVar("communitiesShowOffline", showOfflinePlayers and "1" or "0");
+	HybridScrollFrame_SetOffset(self.ListScrollFrame, 0);
 	self:UpdateMemberList();
 end
 
@@ -484,8 +535,8 @@ function CommunitiesMemberListMixin:RefreshLayout()
 			if clubInfo then
 				if clubInfo.clubType == Enum.ClubType.Guild then
 					guildColumnIndex = self:GetGuildColumnIndex();
-					self.columnInfo = CHARACTER_COLUMN_INFO;
-					self.ColumnDisplay:LayoutColumns(CHARACTER_COLUMN_INFO, EXTRA_GUILD_COLUMNS[guildColumnIndex]);
+					self.columnInfo = GUILD_COLUMN_INFO;
+					self.ColumnDisplay:LayoutColumns(GUILD_COLUMN_INFO, EXTRA_GUILD_COLUMNS[guildColumnIndex]);
 				elseif clubInfo.clubType == Enum.ClubType.Character then
 					self.columnInfo = CHARACTER_COLUMN_INFO;
 					self.ColumnDisplay:LayoutColumns(CHARACTER_COLUMN_INFO);
@@ -1083,7 +1134,11 @@ function CommunitiesMemberListEntryMixin:RefreshExpandedColumns()
 		
 	-- TODO:: Replace these hardcoded strings with proper accessors.
 	if self.guildColumnIndex == EXTRA_GUILD_COLUMN_ACHIEVEMENT then
-		self.GuildInfo:SetText(memberInfo.achievementPoints or "");
+		if ( memberInfo.achievementPoints ) then
+			self.GuildInfo:SetText(memberInfo.achievementPoints);
+		else
+			self.GuildInfo:SetText(NO_ROSTER_ACHIEVEMENT_POINTS);
+		end
 	elseif self.guildColumnIndex == EXTRA_GUILD_COLUMN_PROFESSION then
 		local professionId = self:GetProfessionId();
 		self.GuildInfo:SetText(GUILD_VIEW_RECIPES_LINK);
