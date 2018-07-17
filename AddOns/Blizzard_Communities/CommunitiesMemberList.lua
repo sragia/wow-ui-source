@@ -604,6 +604,11 @@ function CommunitiesMemberListMixin:OnEvent(event, ...)
 			self:MarkSortDirty();
 		end
 	elseif event == "GUILD_ROSTER_UPDATE" then
+		local canRequestGuildRosterUpdate = ...;
+		if canRequestGuildRosterUpdate then
+			GuildRoster();
+		end
+		
 		local clubId = self:GetSelectedClubId();
 		local clubInfo = clubId and C_Club.GetClubInfo(clubId);
 		if clubInfo and clubInfo.clubType == Enum.ClubType.Guild then
