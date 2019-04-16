@@ -38,7 +38,7 @@ end
 
 function WorldStateScoreFrame_OnEvent(self, event, ...)
 	if	event == "UPDATE_BATTLEFIELD_SCORE" or event == "UPDATE_WORLD_STATES" then
-		if C_PvP.IsActiveBattlefield() and (self:IsVisible() or GetBattlefieldWinner()) then
+		if self:IsVisible() then
 			WorldStateScoreFrame_Resize();
 			WorldStateScoreFrame_Update();
 		end
@@ -75,7 +75,7 @@ end
 
 function WorldStateScoreFrame_Update()
 	local isArena, isRegistered = IsActiveBattlefieldArena();
-	local isRatedBG = IsRatedBattleground();
+	local isRatedBG = PVPMatchUtil.IsRatedBattleground();
 	local isWargame = IsWargame();
 	local isSkirmish = IsArenaSkirmish();
 	local battlefieldWinner = GetBattlefieldWinner();
@@ -189,12 +189,7 @@ function WorldStateScoreFrame_Update()
 		if ( isArena ) then
 			if ( isRegistered ) then
 				if ( GetBattlefieldTeamInfo(battlefieldWinner) ) then
-					local teamName
-					if ( battlefieldWinner == 0) then
-						teamName = ARENA_TEAM_NAME_GREEN
-					else
-						teamName = ARENA_TEAM_NAME_GOLD
-					end
+					local teamName = battlefieldWinner == 0 and ARENA_TEAM_NAME_PURPLE or ARENA_TEAM_NAME_GOLD;
 					WorldStateScoreWinnerFrameText:SetFormattedText(VICTORY_TEXT_ARENA_WINS, teamName);
 				else
 					WorldStateScoreWinnerFrameText:SetText(VICTORY_TEXT_ARENA_DRAW);
@@ -203,10 +198,10 @@ function WorldStateScoreFrame_Update()
 				WorldStateScoreWinnerFrameText:SetText(_G["VICTORY_TEXT_ARENA"..battlefieldWinner]);
 			end
 			if ( battlefieldWinner == 0 ) then
-				-- Green Team won
-				WorldStateScoreWinnerFrameLeft:SetVertexColor(0.19, 0.57, 0.11);
-				WorldStateScoreWinnerFrameRight:SetVertexColor(0.19, 0.57, 0.11);
-				WorldStateScoreWinnerFrameText:SetVertexColor(0.1, 1.0, 0.1);
+				-- Purple Team won
+				WorldStateScoreWinnerFrameLeft:SetVertexColor(0.72, 0.37, 1.0);
+				WorldStateScoreWinnerFrameRight:SetVertexColor(0.72, 0.37, 1.0);
+				WorldStateScoreWinnerFrameText:SetVertexColor(0.72, 0.37, 1.0);
 			else
 				-- Gold Team won
 				WorldStateScoreWinnerFrameLeft:SetVertexColor(0.85, 0.71, 0.26);
@@ -446,10 +441,10 @@ function WorldStateScoreFrame_Update()
 			if ( faction ) then
 				if ( faction == 0 ) then
 					if ( isArena ) then
-						-- Green Team
-						scoreButton.factionLeft:SetVertexColor(0.19, 0.57, 0.11);
-						scoreButton.factionRight:SetVertexColor(0.19, 0.57, 0.11);
-						scoreButton.name.text:SetVertexColor(0.1, 1.0, 0.1);
+						-- Purple Team
+						scoreButton.factionLeft:SetVertexColor(0.72, 0.37, 1.0);
+						scoreButton.factionRight:SetVertexColor(0.72, 0.37, 1.0);
+						scoreButton.name.text:SetVertexColor(0.72, 0.37, 1.0);
 					else
 						-- Horde
 						scoreButton.factionLeft:SetVertexColor(0.52, 0.075, 0.18);
@@ -530,7 +525,7 @@ end
 
 function WorldStateScoreFrame_Resize()
 	local isArena, isRegistered = IsActiveBattlefieldArena();
-	local isRatedBG = IsRatedBattleground();
+	local isRatedBG = PVPMatchUtil.IsRatedBattleground();
 
 	local columns = SCOREFRAME_BASE_COLUMNS;
 	local scrollBar = 37;
@@ -649,6 +644,11 @@ function ToggleWorldStateScoreFrame()
 	if ( WorldStateScoreFrame:IsShown() ) then
 		HideUIPanel(WorldStateScoreFrame);
 	else
+		local isArena = IsActiveBattlefieldArena() or IsArenaSkirmish();
+		if (isArena) then
+			return;
+		end
+
 		--Make sure we're in an active BG
 		local inBattlefield = false;
 		for i=1, GetMaxBattlefieldID() do
