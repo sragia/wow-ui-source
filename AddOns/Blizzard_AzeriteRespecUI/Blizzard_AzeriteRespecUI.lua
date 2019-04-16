@@ -3,13 +3,13 @@ UIPanelWindows["AzeriteRespecFrame"] = {area = "left", pushable = 3, showFailedF
 AzeriteRespecMixin = {};
 
 function AzeriteRespecMixin:OnLoad()
-	SetPortraitToTexture(self.portrait, "Interface\\Icons\\inv_enchant_voidsphere");
+	PortraitFrameTemplate_SetPortraitToAsset(self, "Interface\\Icons\\inv_enchant_voidsphere");
 	self.TitleText:SetText(AZERITE_RESPEC_TITLE);
 	self.CornerBL:SetPoint("BOTTOMLEFT", -1, 24);
 	self.CornerBR:SetPoint("BOTTOMRIGHT", 0, 24);
 	self.CornerTL:SetPoint("TOPLEFT", -2, -18);
 	self.CornerTR:SetPoint("TOPRIGHT", 0, -18);
-	
+
 	self:RegisterEvent("PLAYER_MONEY");
 	self:RegisterEvent("RESPEC_AZERITE_EMPOWERED_ITEM_CLOSED");
 	self:RegisterEvent("AZERITE_EMPOWERED_ITEM_SELECTION_UPDATED");
@@ -18,7 +18,7 @@ end
 function AzeriteRespecMixin:OnEvent(event, ...)
 	if event == "RESPEC_AZERITE_EMPOWERED_ITEM_CLOSED" then
 		HideUIPanel(self);
-	elseif(event == "PLAYER_MONEY") or (event == "AZERITE_EMPOWERED_ITEM_SELECTION_UPDATED") then 
+	elseif(event == "PLAYER_MONEY") or (event == "AZERITE_EMPOWERED_ITEM_SELECTION_UPDATED") then
 		self:UpdateMoney();
 		if (event == "AZERITE_EMPOWERED_ITEM_SELECTION_UPDATED") then
 			local itemLocation = ...;
@@ -40,13 +40,14 @@ end
 function AzeriteRespecMixin:OnHide()
 	PlaySound(SOUNDKIT.UI_80_AZERITEARMOR_REFORGE_ETHEREALWINDOW_CLOSE)
 	StaticPopup_Hide("CONFIRM_AZERITE_EMPOWERED_RESPEC");
+	StaticPopup_Hide("CONFIRM_AZERITE_EMPOWERED_RESPEC_EXPENSIVE");
 	C_AzeriteEmpoweredItem.CloseAzeriteEmpoweredItemRespec();
 	self:SetRespecItem(nil);
 end
 
 function AzeriteRespecMixin:UpdateMoney()
 	self.respecCost = C_AzeriteEmpoweredItem.GetAzeriteEmpoweredItemRespecCost();
-	MoneyFrame_Update(self.ButtonFrame.MoneyFrame:GetName(), self.respecCost, false);	
+	MoneyFrame_Update(self.ButtonFrame.MoneyFrame:GetName(), self.respecCost, false);
 	if GetMoney() < (self.respecCost) then
 		SetMoneyFrameColor(self.ButtonFrame.MoneyFrame:GetName(), "red");
 	else
@@ -59,13 +60,19 @@ function AzeriteRespecMixin:GetRespecItemLocation()
 	return self.respecItemLocation;
 end
 
+local SHOW_EXPENSIVE_WARNING_THRESHOLD = 1000 * COPPER_PER_SILVER * SILVER_PER_GOLD;
 function AzeriteRespecMixin:AzeriteRespecItem()
 	local item = Item:CreateFromItemLocation(self.respecItemLocation);
-	StaticPopup_Show("CONFIRM_AZERITE_EMPOWERED_RESPEC", item:GetItemLink(), nil, {empoweredItemLocation = self.respecItemLocation, respecCost = self.respecCost});
+	local data = {empoweredItemLocation = self.respecItemLocation, respecCost = self.respecCost};
+	if self.respecCost >= SHOW_EXPENSIVE_WARNING_THRESHOLD then
+		StaticPopup_Show("CONFIRM_AZERITE_EMPOWERED_RESPEC_EXPENSIVE", item:GetItemLink(), nil, data);
+	else
+		StaticPopup_Show("CONFIRM_AZERITE_EMPOWERED_RESPEC", item:GetItemLink(), nil, data);
+	end
 end
 
 function AzeriteRespecMixin:UpdateAzeriteRespecButtonState()
-	self.ButtonFrame.AzeriteRespecButton:SetEnabled(self.respecItemLocation ~= nil and GetMoney() > self.respecCost); 
+	self.ButtonFrame.AzeriteRespecButton:SetEnabled(self.respecItemLocation ~= nil and GetMoney() > self.respecCost);
 end
 
 function AzeriteRespecMixin:SetRespecItem(itemLocation)
@@ -85,7 +92,7 @@ function AzeriteRespecMixin:SetRespecItem(itemLocation)
 		self.itemDataLoadedCancelFunc();
 		self.itemDataLoadedCancelFunc = nil;
 	end
-	
+
 	if self.respecItemLocation then
 		local oldItem = Item:CreateFromItemLocation(self.respecItemLocation);
 		oldItem:UnlockItem();
@@ -97,7 +104,7 @@ function AzeriteRespecMixin:SetRespecItem(itemLocation)
 			self.HelpBox:Hide();
 			SetCVarBitfield("closedInfoFrames", LE_FRAME_TUTORIAL_AZERITE_RESPEC, true);
 		end
-		
+
 		local item = Item:CreateFromItemLocation(self.respecItemLocation);
 		item:LockItem();
 	end

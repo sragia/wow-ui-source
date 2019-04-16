@@ -20,7 +20,7 @@ function VoiceActivityManagerMixin:OnLoad()
 
 	self.notificationTemplates = { "VoiceActivityNotificationTemplate" };
 	self.externalNotificationTemplates = {};
-	self.notificationPools = CreatePoolCollection();
+	self.notificationPools = CreateFramePoolCollection();
 
 	for index, templateType in ipairs(self.notificationTemplates) do
 		self.notificationPools:CreatePool("ContainedAlertFrame", self, templateType);
@@ -108,7 +108,7 @@ function VoiceActivityManagerMixin:OnMemberRemoved(memberID, channelID)
 	self:ReleaseNotifications(memberID, channelID);
 end
 
-function VoiceActivityManagerMixin:OnChannelRemoved(statusCode, channelID)
+function VoiceActivityManagerMixin:OnChannelRemoved(channelID)
 	self:ReleaseNotifications("*", channelID);
 end
 

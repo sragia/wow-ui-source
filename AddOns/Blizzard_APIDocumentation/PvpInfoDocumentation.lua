@@ -10,9 +10,32 @@ local PvpInfo =
 			Name = "CanToggleWarMode",
 			Type = "Function",
 
+			Arguments =
+			{
+				{ Name = "toggle", Type = "bool", Nilable = false },
+			},
+
 			Returns =
 			{
 				{ Name = "canTogglePvP", Type = "bool", Nilable = false },
+			},
+		},
+		{
+			Name = "CanToggleWarModeInArea",
+			Type = "Function",
+
+			Returns =
+			{
+				{ Name = "canTogglePvPInArea", Type = "bool", Nilable = false },
+			},
+		},
+		{
+			Name = "GetActiveBrawlInfo",
+			Type = "Function",
+
+			Returns =
+			{
+				{ Name = "brawlInfo", Type = "PvpBrawlInfo", Nilable = true },
 			},
 		},
 		{
@@ -61,7 +84,7 @@ local PvpInfo =
 			},
 		},
 		{
-			Name = "GetBrawlInfo",
+			Name = "GetAvailableBrawlInfo",
 			Type = "Function",
 			Documentation = { "If nil is returned, PVP_BRAWL_INFO_UPDATED event will be sent when the data is ready." },
 
@@ -213,6 +236,21 @@ local PvpInfo =
 			},
 		},
 		{
+			Name = "GetRewardItemLevelsByTierEnum",
+			Type = "Function",
+
+			Arguments =
+			{
+				{ Name = "pvpTierEnum", Type = "number", Nilable = false },
+			},
+
+			Returns =
+			{
+				{ Name = "activityItemLevel", Type = "number", Nilable = false },
+				{ Name = "weeklyItemLevel", Type = "number", Nilable = false },
+			},
+		},
+		{
 			Name = "GetSeasonBestInfo",
 			Type = "Function",
 
@@ -237,12 +275,51 @@ local PvpInfo =
 			},
 		},
 		{
+			Name = "GetWarModeRewardBonus",
+			Type = "Function",
+
+			Returns =
+			{
+				{ Name = "rewardBonus", Type = "number", Nilable = false },
+			},
+		},
+		{
+			Name = "GetWarModeRewardBonusDefault",
+			Type = "Function",
+
+			Returns =
+			{
+				{ Name = "defaultBonus", Type = "number", Nilable = false },
+			},
+		},
+		{
+			Name = "GetWeeklyChestInfo",
+			Type = "Function",
+
+			Returns =
+			{
+				{ Name = "rewardAchieved", Type = "bool", Nilable = false },
+				{ Name = "lastWeekRewardAchieved", Type = "bool", Nilable = false },
+				{ Name = "lastWeekRewardClaimed", Type = "bool", Nilable = false },
+				{ Name = "pvpTierMaxFromWins", Type = "number", Nilable = false },
+			},
+		},
+		{
 			Name = "HasArenaSkirmishWinToday",
 			Type = "Function",
 
 			Returns =
 			{
 				{ Name = "hasArenaSkirmishWinToday", Type = "bool", Nilable = false },
+			},
+		},
+		{
+			Name = "IsActiveBattlefield",
+			Type = "Function",
+
+			Returns =
+			{
+				{ Name = "isActiveBattlefield", Type = "bool", Nilable = false },
 			},
 		},
 		{
@@ -561,9 +638,8 @@ local PvpInfo =
 				{ Name = "name", Type = "string", Nilable = false },
 				{ Name = "shortDescription", Type = "string", Nilable = false },
 				{ Name = "longDescription", Type = "string", Nilable = false },
-				{ Name = "active", Type = "bool", Nilable = false },
+				{ Name = "canQueue", Type = "bool", Nilable = false },
 				{ Name = "timeLeftUntilNextChange", Type = "number", Nilable = false },
-				{ Name = "lfgDungeonID", Type = "number", Nilable = false },
 				{ Name = "brawlType", Type = "BrawlType", Nilable = false },
 				{ Name = "mapNames", Type = "table", InnerType = "string", Nilable = false },
 			},

@@ -128,7 +128,7 @@ function PetJournal_OnShow(self)
 		end
 	end
 
-	SetPortraitToTexture(CollectionsJournalPortrait, "Interface\\Icons\\PetJournalPortrait");
+	PortraitFrameTemplate_SetPortraitToAsset(CollectionsJournal, "Interface\\Icons\\PetJournalPortrait");
 end
 
 function PetJournal_OnHide(self)
@@ -379,7 +379,7 @@ function PetJournalSummonRandomFavoritePetButton_UpdateSpellUsability(self)
 			self.BlackCover:Hide();
 			self:RegisterForClicks("LeftButtonUp", "RightButtonUp");
 			self:RegisterForDrag("LeftButton");
-		end																				
+		end
 	else
 		self.BlackCover:Show();
 		self.texture:SetDesaturated(true);
@@ -410,7 +410,7 @@ function PetJournalSummonRandomFavoritePetButton_OnEnter(self)
 	GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 
 	local numPets, numOwned = C_PetJournal.GetNumPets();
-	if ( numOwned > 0 and not C_PetBattles.IsInBattle()  ) then 
+	if ( numOwned > 0 and not C_PetBattles.IsInBattle()  ) then
 		GameTooltip:SetCompanionPet(self.petID);
 	else
 		GameTooltip:SetSpellByID(self.spellID);
@@ -482,7 +482,7 @@ function PetJournal_ShowPetSelect(self)
 	self.selected:Show();
 	PetJournal.SpellSelect.slotIndex = slotIndex;
 	PetJournal.SpellSelect.abilityIndex = abilityIndex;
-	PetJournal.SpellSelect:SetFrameLevel(PetJournalLoadoutBorder:GetFrameLevel()+1);
+	PetJournal.SpellSelect:SetFrameLevel(CollectionsJournal.NineSlice:GetFrameLevel() + 1);
 	PetJournal_HideAbilityTooltip();
 
 	--Setup spell one
@@ -592,7 +592,8 @@ function PetJournal_UpdatePetLoadOut(forceSceneChange)
 				loadoutPlate.requirement.str:SetText(GetAchievementLink(UNLOCK_REQUIREMENTS[i].id));
 				loadoutPlate.requirement.achievementID = UNLOCK_REQUIREMENTS[i].id;
 			elseif (UNLOCK_REQUIREMENTS[i].requirement == "SPELL" and UNLOCK_REQUIREMENTS[i].id) then
-				loadoutPlate.requirement.str:SetText(GetSpellLink(UNLOCK_REQUIREMENTS[i].id));
+				local spellLink = GetSpellLink(UNLOCK_REQUIREMENTS[i].id);
+				loadoutPlate.requirement.str:SetText(spellLink);
 				loadoutPlate.requirement.spellID = UNLOCK_REQUIREMENTS[i].id;
 			end
 			loadoutPlate.helpFrame.text:SetText(_G["BATTLE_PET_UNLOCK_HELP_"..i]);

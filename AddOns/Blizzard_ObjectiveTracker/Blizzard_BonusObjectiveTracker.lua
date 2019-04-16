@@ -473,90 +473,19 @@ function BonusObjectiveTracker_ShowRewardsTooltip(block)
 		GameTooltip:AddLine(RETRIEVING_DATA, RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b);
 	else
 		local isWorldQuest = block.module.ShowWorldQuests;
-
-		if (isWorldQuest) then
-			local headerLine = 1;
-			local needsSpacer = false;
-
-			local mapID, zoneMapID = C_TaskQuest.GetQuestZoneID(questID)
-			if (mapID and zoneMapID) then
-				local mapInfo = C_Map.GetMapInfo(zoneMapID);
-
-				if (mapInfo) then
-					GameTooltipTextLeft1:SetFontObject(GameTooltipText);
-					GameTooltip:SetText(mapInfo.name, 0.4, 0.733, 1.0);
-					needsSpacer = true;
-					headerLine = headerLine + 1;
-
-					local title, factionID, capped = C_TaskQuest.GetQuestInfoByQuestID(questID);
-
-					if ( factionID ) then
-						local factionName = GetFactionInfoByID(factionID);
-						if ( factionName ) then
-							if (capped) then
-								GameTooltip:AddLine(factionName, GRAY_FONT_COLOR:GetRGB());
-							else
-								GameTooltip:AddLine(factionName, 0.4, 0.733, 1.0);
-							end
-							headerLine = headerLine + 1;
-						end
-					end
-				end
-			end
-
+		if ( isWorldQuest ) then
 			QuestUtils_AddQuestTypeToTooltip(GameTooltip, questID, NORMAL_FONT_COLOR);
-
-			if (needsSpacer) then
-				GameTooltip:AddLine(" ");
-				headerLine = headerLine + 1;
-			end
-
-			_G["GameTooltipTextLeft"..headerLine]:SetFontObject(GameTooltipHeaderText);
 			GameTooltip:AddLine(REWARDS, NORMAL_FONT_COLOR:GetRGB());
 		else
 			GameTooltip:SetText(REWARDS, NORMAL_FONT_COLOR:GetRGB());
 		end
-
 		GameTooltip:AddLine(isWorldQuest and WORLD_QUEST_TOOLTIP_DESCRIPTION or BONUS_OBJECTIVE_TOOLTIP_DESCRIPTION, 1, 1, 1, 1);
 		GameTooltip:AddLine(" ");
-		-- xp
-		local xp = GetQuestLogRewardXP(questID);
-		if ( xp > 0 ) then
-			GameTooltip:AddLine(string.format(BONUS_OBJECTIVE_EXPERIENCE_FORMAT, xp), 1, 1, 1);
-		end
-		local artifactXP = GetQuestLogRewardArtifactXP(questID);
-		if ( artifactXP > 0 ) then
-			GameTooltip:AddLine(string.format(BONUS_OBJECTIVE_ARTIFACT_XP_FORMAT, artifactXP), 1, 1, 1);
-		end
-		-- currency
-		QuestUtils_AddQuestCurrencyRewardsToTooltip(questID, GameTooltip);
-		-- honor
-		local honorAmount = GetQuestLogRewardHonor(questID);
-		if ( honorAmount > 0 ) then
-			GameTooltip:AddLine(BONUS_OBJECTIVE_REWARD_WITH_COUNT_FORMAT:format("Interface\\ICONS\\Achievement_LegionPVPTier4", honorAmount, HONOR), 1, 1, 1);
-		end
-		-- money
-		local money = GetQuestLogRewardMoney(questID);
-		if ( money > 0 ) then
-			SetTooltipMoney(GameTooltip, money, nil);
-		end
-		-- items
-		local numQuestRewards = GetNumQuestLogRewards(questID);
-		for i = 1, numQuestRewards do
-			local name, texture, numItems, quality, isUsable = GetQuestLogRewardInfo(i, questID);
-			local text;
-			if ( numItems > 1 ) then
-				text = string.format(BONUS_OBJECTIVE_REWARD_WITH_COUNT_FORMAT, texture, HIGHLIGHT_FONT_COLOR:WrapTextInColorCode(numItems), name);
-			elseif( texture and name ) then
-				text = string.format(BONUS_OBJECTIVE_REWARD_FORMAT, texture, name);
-			end
-			if( text ) then
-				local color = ITEM_QUALITY_COLORS[quality];
-				GameTooltip:AddLine(text, color.r, color.g, color.b);
-			end
-		end
+		GameTooltip_AddQuestRewardsToTooltip(GameTooltip, questID, TOOLTIP_QUEST_REWARDS_STYLE_NONE);
 	end
+
 	GameTooltip:Show();
+	GameTooltip.recalculatePadding = true;
 	block.module.tooltipBlock = block;
 end
 
@@ -750,22 +679,24 @@ local function UpdateScenarioBonusObjectives(module)
 	end
 end
 
-local function TryAddingTimeLeftLine(module, block, questID)
-	local timeLeftMinutes = C_TaskQuest.GetQuestTimeLeftMinutes(questID);
-	if ( timeLeftMinutes and module.tickerSeconds ) then
+local function TryAddingExpirationWarningLine(module, block, questID)
+	if ( QuestUtils_ShouldDisplayExpirationWarning(questID) ) then
+		local timeLeftMinutes = C_TaskQuest.GetQuestTimeLeftMinutes(questID);
 		local text = "";
-		if ( timeLeftMinutes > 0 ) then
-			if ( timeLeftMinutes < WORLD_QUESTS_TIME_CRITICAL_MINUTES ) then
-				local timeString = SecondsToTime(timeLeftMinutes * 60);
-				text = BONUS_OBJECTIVE_TIME_LEFT:format(timeString);
-				-- want to update the time every 10 seconds
-				module.tickerSeconds = 10;
-			else
-				-- want to update 10 seconds before the difference becomes 0 minutes
-				-- once at 0 minutes we want a 10 second update to catch the transition below WORLD_QUESTS_TIME_CRITICAL_MINUTES
-				local timeToAlert = min((timeLeftMinutes - WORLD_QUESTS_TIME_CRITICAL_MINUTES) * 60 - 10, 10);
-				if ( module.tickerSeconds == 0 or timeToAlert < module.tickerSeconds ) then
-					module.tickerSeconds = timeToAlert;
+		if ( timeLeftMinutes and module.tickerSeconds ) then
+			if ( timeLeftMinutes > 0 ) then
+				if ( timeLeftMinutes < WORLD_QUESTS_TIME_CRITICAL_MINUTES ) then
+					local timeString = SecondsToTime(timeLeftMinutes * 60);
+					text = BONUS_OBJECTIVE_TIME_LEFT:format(timeString);
+					-- want to update the time every 10 seconds
+					module.tickerSeconds = 10;
+				else
+					-- want to update 10 seconds before the difference becomes 0 minutes
+					-- once at 0 minutes we want a 10 second update to catch the transition below WORLD_QUESTS_TIME_CRITICAL_MINUTES
+					local timeToAlert = min((timeLeftMinutes - WORLD_QUESTS_TIME_CRITICAL_MINUTES) * 60 - 10, 10);
+					if ( module.tickerSeconds == 0 or timeToAlert < module.tickerSeconds ) then
+						module.tickerSeconds = timeToAlert;
+					end
 				end
 			end
 		end
@@ -801,11 +732,11 @@ local function AddBonusObjectiveQuest(module, questID, posIndex, isTrackedWorldQ
 		end
 
 		if ( QuestUtils_IsQuestWorldQuest(questID) ) then
-			local tagID, tagName, worldQuestType, rarity, isElite, tradeskillLineIndex, displayTimeLeft = GetQuestTagInfo(questID);
+			local tagID, tagName, worldQuestType, rarity, isElite, tradeskillLineIndex = GetQuestTagInfo(questID);
 			assert(worldQuestType);
 
 			local inProgress = questLogIndex ~= 0;
-			WorldMap_SetupWorldQuestButton(block.TrackedQuest, worldQuestType, rarity, isElite, tradeskillLineIndex, inProgress, isSuperTracked, nil, nil, isTrackedWorldQuest);
+			QuestUtil.SetupWorldQuestButton(block.TrackedQuest, worldQuestType, rarity, isElite, tradeskillLineIndex, inProgress, isSuperTracked, nil, nil, isTrackedWorldQuest);
 
 			block.TrackedQuest:SetScale(.9);
 			block.TrackedQuest:SetPoint("TOPRIGHT", block.currentLine, "TOPLEFT", 18, 0);
@@ -848,7 +779,7 @@ local function AddBonusObjectiveQuest(module, questID, posIndex, isTrackedWorldQ
 			if ( objectiveType == "progressbar" ) then
 				if ( module.ShowWorldQuests and not hasAddedTimeLeft ) then
 					-- Add time left (if any) right before the progress bar
-					TryAddingTimeLeftLine(module, block, questID);
+					TryAddingExpirationWarningLine(module, block, questID);
 					hasAddedTimeLeft = true;
 				end
 
@@ -867,7 +798,7 @@ local function AddBonusObjectiveQuest(module, questID, posIndex, isTrackedWorldQ
 		end
 		if ( module.ShowWorldQuests and not hasAddedTimeLeft ) then
 			-- No progress bar, try adding it at the end
-			TryAddingTimeLeftLine(module, block, questID);
+			TryAddingExpirationWarningLine(module, block, questID);
 		end
 		block:SetHeight(block.height + module.blockPadding);
 

@@ -808,17 +808,7 @@ function SCENARIO_CONTENT_TRACKER_MODULE:StaticReanchor()
 end
 
 function ScenarioStage_UpdateOptionWidgetRegistration(stageBlock, widgetSetID)
-	if stageBlock.widgetSetID and stageBlock.widgetSetID ~= widgetSetID then
-		UIWidgetManager:UnregisterWidgetSetContainer(stageBlock.widgetSetID, stageBlock.WidgetContainer);
-		stageBlock.WidgetContainer:Hide();
-	end
-
-	if widgetSetID then
-		UIWidgetManager:RegisterWidgetSetContainer(widgetSetID, stageBlock.WidgetContainer);
-		stageBlock.WidgetContainer:Show();
-	end
-
-	stageBlock.widgetSetID = widgetSetID;
+	stageBlock.WidgetContainer:RegisterForWidgetSet(widgetSetID);
 end
 
 function ScenarioStage_CustomizeBlock(stageBlock, scenarioType, widgetSetID, textureKitID)
@@ -829,6 +819,7 @@ function ScenarioStage_CustomizeBlock(stageBlock, scenarioType, widgetSetID, tex
 		stageBlock.CompleteLabel:SetPoint("LEFT", stageBlock, "LEFT", 15, 17);
 		stageBlock.Stage:SetPoint("TOPLEFT", stageBlock, "TOPLEFT", 15, -8);
 		stageBlock.Stage:SetTextColor(1, 0.914, 0.682);
+		stageBlock.Stage:SetHeight(34);
 		stageBlock.NormalBG:Hide();
 	else
 		ScenarioStageBlock.CompleteLabel:SetPoint("LEFT", stageBlock, "LEFT", 15, 3);

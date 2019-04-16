@@ -21,6 +21,7 @@ EJ_ALERT_TIME_DIFF = 60*60*24*7*2; -- 2 weeks
 
 local g_microButtonAlertsEnabled = true;
 local g_visibleMicroButtonAlerts = {};
+local g_acknowledgedMicroButtonAlerts = {};
 local g_visibleExternalAlerts = {};
 local g_flashingMicroButtons = {};
 
@@ -226,13 +227,7 @@ function UpdateMicroButtons()
 
 	StoreMicroButton:Show();
 	HelpMicroButton:Hide();
-	if ( IsVeteranTrialAccount() ) then
-		StoreMicroButton.disabledTooltip = ERR_RESTRICTED_ACCOUNT_TRIAL;
-		StoreMicroButton:Disable();
-	elseif ( IsTrialAccount() ) then
-		StoreMicroButton.disabledTooltip = ERR_RESTRICTED_ACCOUNT_TRIAL;
-		StoreMicroButton:Disable();
-	elseif ( C_StorePublic.IsDisabledByParentalControls() ) then
+	if ( C_StorePublic.IsDisabledByParentalControls() ) then
 		StoreMicroButton.disabledTooltip = BLIZZARD_STORE_ERROR_PARENTAL_CONTROLS;
 		StoreMicroButton:Disable();
 	elseif ( IsKioskModeEnabled() ) then
@@ -540,7 +535,7 @@ function MainMenuMicroButton_UpdateAlertsEnabled(frameToSkip)
 			if frameToSkip ~= priorityFrame then
 				priorityFrame.MicroButton:EvaluateAlertVisibility();
 				if priorityFrame:IsShown() then
-					break;
+					return;
 				end
 			end
 		end
@@ -556,6 +551,8 @@ function MainMenuMicroButton_UpdateAlertsEnabled(frameToSkip)
 		g_visibleMicroButtonAlerts = {};
 		g_flashingMicroButtons = {};
 	end
+	-- wipe acknowledgements so future events can still show the appropriate ones
+	wipe(g_acknowledgedMicroButtonAlerts);
 end
 
 function MainMenuMicroButton_AreAlertsEffectivelyEnabled()
@@ -564,6 +561,10 @@ end
 
 function MainMenuMicroButton_ShowAlert(alert, text, tutorialIndex)
 	if not MainMenuMicroButton_AreAlertsEffectivelyEnabled() then
+		return false;
+	end
+
+	if g_acknowledgedMicroButtonAlerts[alert] then
 		return false;
 	end
 
@@ -621,6 +622,21 @@ end
 
 TalentMicroButtonMixin = {};
 
+function TalentMicroButtonMixin:OnLoad()
+	LoadMicroButtonTextures(self, "Talents");
+	self.tooltipText = MicroButtonTooltipText(TALENTS_BUTTON, "TOGGLETALENTS");
+	self.newbieText = NEWBIE_TOOLTIP_TALENTS;
+
+	self.minLevel = SHOW_SPEC_LEVEL;
+	self:RegisterEvent("PLAYER_LEVEL_UP");
+	self:RegisterEvent("UPDATE_BINDINGS");
+	self:RegisterEvent("PLAYER_TALENT_UPDATE");
+	self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED");
+	self:RegisterEvent("HONOR_LEVEL_UPDATE");
+	self:RegisterEvent("PLAYER_PVP_TALENT_UPDATE");
+	self:RegisterEvent("PLAYER_LEVEL_CHANGED");
+end
+
 function TalentMicroButtonMixin:HasTalentAlertToShow()
 	return not AreTalentsLocked() and GetNumUnspentTalents() > 0;
 end
@@ -656,7 +672,7 @@ function TalentMicroButtonMixin:EvaluateAlertVisibility()
 end
 
 --Talent button specific functions
-function TalentMicroButton_OnEvent(self, event, ...)
+function TalentMicroButtonMixin:OnEvent(event, ...)
 	if ( event == "PLAYER_LEVEL_UP" ) then
 		local level = ...;
 		if (level == SHOW_SPEC_LEVEL) then
@@ -668,7 +684,7 @@ function TalentMicroButton_OnEvent(self, event, ...)
 				MicroButtonPulse(self);
 			end
 		end
-	elseif ( event == "PLAYER_SPECIALIZATION_CHANGED" ) then
+	elseif ( event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_LEVEL_CHANGED" ) then
 		self:EvaluateAlertVisibility();
 	elseif ( event == "PLAYER_TALENT_UPDATE" or event == "NEUTRAL_FACTION_SELECT_RESULT" or event == "HONOR_LEVEL_UPDATE" ) then
 		UpdateMicroButtons();
@@ -688,7 +704,7 @@ function TalentMicroButton_OnEvent(self, event, ...)
 	end
 end
 
-function TalentMicroButton_OnClick(self)
+function TalentMicroButtonMixin:OnClick(self)
     ToggleTalentFrame(self.suggestedTab);
 end
 
@@ -958,6 +974,7 @@ end
 function MicroButtonAlert_OnLoad(self)
 	if self.MicroButton then
 		self:SetParent(self.MicroButton);
+		self:SetFrameStrata("DIALOG");
 	end
 	self.Text:SetSpacing(4);
 	MicroButtonAlert_SetText(self, self.label);
@@ -968,6 +985,10 @@ function MicroButtonAlert_OnShow(self)
 	if ( self.tutorialIndex and GetCVarBitfield("closedInfoFrames", self.tutorialIndex) ) then
 		self:Hide();
 	end
+end
+
+function MicroButtonAlert_OnAcknowledged(self)
+	g_acknowledgedMicroButtonAlerts[self] = true;
 end
 
 function MicroButtonAlert_OnHide(self)

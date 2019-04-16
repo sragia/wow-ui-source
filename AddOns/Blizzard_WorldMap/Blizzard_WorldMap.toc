@@ -1,4 +1,4 @@
-## Interface: 80000
+## Interface: 80100
 ## Title: Blizzard World Map UI
 ## Secure: 1
 ## Author: Blizzard Entertainment
@@ -11,4 +11,3 @@ WM_InvasionDataProvider.xml
 WM_DebugDataProvider.xml
 Blizzard_WorldMapTemplates.xml
 Blizzard_WorldMap.xml
-Blizzard_WorldMapTooltip.xml

@@ -85,8 +85,8 @@ function MerchantFrame_OnUpdate(self, dt)
 end
 
 function MerchantFrame_OnShow(self)
-	OpenAllBags(self);
-	ContainerFrame_UpdateAll();
+	local forceUpdate = true;
+	OpenAllBags(self, forceUpdate);
 	
 	-- Update repair all button status
 	MerchantFrame_UpdateCanRepairAll();
@@ -100,7 +100,10 @@ end
 
 function MerchantFrame_OnHide(self)
 	CloseMerchant();
-	CloseAllBags(self);
+	
+	local forceUpdate = true;
+	CloseAllBags(self, forceUpdate);
+
 	ResetCursor();
 	
 	StaticPopup_Hide("CONFIRM_PURCHASE_TOKEN_ITEM");
@@ -266,7 +269,7 @@ function MerchantFrame_UpdateMerchantInfo()
 			local isHeirloom = merchantItemID and C_Heirloom.IsItemHeirloom(merchantItemID);
 			local isKnownHeirloom = isHeirloom and C_Heirloom.PlayerHasHeirloom(merchantItemID);
 
-			itemButton.showNonrefundablePrompt = isHeirloom;
+			itemButton.showNonrefundablePrompt = not C_MerchantFrame.IsMerchantItemRefundable(index);
 
 			itemButton.hasItem = true;
 			itemButton:SetID(index);
@@ -610,7 +613,7 @@ function MerchantItemButton_OnModifiedClick(self, button)
 
 			if ( maxStack > 1 ) then
 				local maxPurchasable = min(maxStack, canAfford);
-				OpenStackSplitFrame(maxPurchasable, self, "BOTTOMLEFT", "TOPLEFT", stackCount);
+				StackSplitFrame:OpenStackSplitFrame(maxPurchasable, self, "BOTTOMLEFT", "TOPLEFT", stackCount);
 			end
 			return;
 		end
@@ -681,11 +684,15 @@ function MerchantFrame_ConfirmExtendedItemCost(itemButton, numToPurchase)
 		if ( itemsString ) then
 			itemsString = itemsString .. LIST_DELIMITER .. GetMoneyString(itemButton.price);
 		else
+			if itemButton.price < MERCHANT_HIGH_PRICE_COST then
+				BuyMerchantItem( itemButton:GetID(), numToPurchase );
+				return;
+			end
 			itemsString = GetMoneyString(itemButton.price);
 		end
 	end
 	
-	if ( not usingCurrency and maxQuality <= LE_ITEM_QUALITY_UNCOMMON and not itemButton.showNonrefundablePrompt) then
+	if ( not usingCurrency and maxQuality <= LE_ITEM_QUALITY_UNCOMMON and not itemButton.showNonrefundablePrompt) or (not itemsString and not itemButton.price) then
 		BuyMerchantItem( itemButton:GetID(), numToPurchase );
 		return;
 	end

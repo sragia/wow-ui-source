@@ -52,6 +52,11 @@ local GuildInfo =
 				{ Name = "guid", Type = "string", Nilable = false },
 				{ Name = "rankOrder", Type = "number", Nilable = false },
 			},
+
+			Returns =
+			{
+				{ Name = "isGuildRankAssignmentAllowed", Type = "bool", Nilable = false },
+			},
 		},
 		{
 			Name = "QueryGuildMemberRecipes",
@@ -159,7 +164,8 @@ local GuildInfo =
 				{ Name = "emblemColorR", Type = "number", Nilable = true },
 				{ Name = "emblemColorG", Type = "number", Nilable = true },
 				{ Name = "emblemColorB", Type = "number", Nilable = true },
-				{ Name = "emblemFilename", Type = "string", Nilable = true },
+				{ Name = "emblemFileID", Type = "number", Nilable = true },
+				{ Name = "emblemIndex", Type = "number", Nilable = true },
 			},
 		},
 		{

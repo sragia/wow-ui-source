@@ -12,6 +12,7 @@ WORGEN_RACE_ID = 22;
 PANDAREN_RACE_ID = 24;
 PANDAREN_ALLIANCE_RACE_ID = 25;
 PANDAREN_HORDE_RACE_ID = 26;
+DEMON_HUNTER_CLASS_ID = 12;
 
 PAID_CHARACTER_CUSTOMIZATION = 1;
 PAID_RACE_CHANGE = 2;
@@ -91,8 +92,11 @@ RACE_ICON_TCOORDS = {
 	["MAGHARORC_MALE"]			= {0.375, 0.5, 0.25, 0.5},
 	["MAGHARORC_FEMALE"]		= {0.375, 0.5, 0.75, 1.0},
 
-	["ZANDALARITROLL_MALE"]		= {0.25, 0.375, 0.25, 0.5},
-	["ZANDALARITROLL_FEMALE"]	= {0.25, 0.375, 0.75, 1.0},
+	["ZANDALARITROLL_MALE"]		= {0.25, 0.375, 0, 0.25},
+	["ZANDALARITROLL_FEMALE"]	= {0.25, 0.375, 0.5, 0.75},
+
+	["KULTIRAN_MALE"]		= {0, 0.125, 0, 0.25},
+	["KULTIRAN_FEMALE"]		= {0, 0.125, 0.5, 0.75},
 };
 
 CHARCREATE_CLASS_TOOLTIP = {};
@@ -165,7 +169,7 @@ CHARCREATE_CLASS_INFO = {
 		spells = {
 			{name = CLASS_DRUID_SPELLNAME1, desc = CLASS_DRUID_SPELLDESC1, texture = [[Interface\Icons\Ability_Racial_BearForm]]}, -- Bear Form
 			{name = CLASS_DRUID_SPELLNAME2, desc = CLASS_DRUID_SPELLDESC2, texture = [[Interface\Icons\Ability_Druid_CatForm]]}, -- Cat Form
-			{name = CLASS_DRUID_SPELLNAME3, desc = CLASS_DRUID_SPELLDESC3, texture = [[Interface\Icons\Spell_Nature_HealingTouch]]}, -- Healing Touch
+			{name = CLASS_DRUID_SPELLNAME3, desc = CLASS_DRUID_SPELLDESC3, texture = [[Interface\Icons\SPELL_NATURE_RESISTNATURE]]}, -- Regrowth
 		},
 	},
 	DEMONHUNTER = {
@@ -216,6 +220,8 @@ MODEL_CAMERA_CONFIG = {
 		["ZandalariTroll"] = { tx = 0.402, ty = 0.016, tz = 2.076, cz = 1.980, distance = 0.943, light =  0.75 },
 		["DarkIronDwarf"] = { tx = 0.037, ty = 0.009, tz = 1.298, cz = 1.265, distance = 0.839, light =  0.85 },
 		["MagharOrc"] = { tx = -0.0322, ty = -0.0771, tz = 2.114, cz = 2.030, distance = 1.200, light =  0.75 },
+		["ZandalariTroll"] = { tx = -0.01642, ty = -0.082216, tz = 2.5657, cz = 2.418, distance = 1.2, light =  0.85 },
+		["KulTiran"] = { tx = 0.05591, ty = -0.04111, tz = 2.3603, cz = 2.23827, distance = 1.2, light =  0.75 },
 	},
 	[1] = {
 		["Draenei"] = { tx = 0.155, ty = 0.009, tz = 2.177, cz = 1.971, distance = 0.734, light =  0.75 },
@@ -248,6 +254,8 @@ MODEL_CAMERA_CONFIG = {
 		["ZandalariTroll"] = { tx = 0.031, ty = -0.082, tz = 2.226, cz = 2.248, distance = 0.674, light =  0.75 },
 		["DarkIronDwarf"] = { tx = -0.060, ty = -0.010, tz = 1.326, cz = 1.343, distance = 0.720, light =  0.80 },
 		["MagharOrc"] = { tx = -0.069, ty = -0.007, tz = 1.863, cz = 1.718, distance = 0.585, light =  0.75 },
+		["ZandalariTroll"] = { tx = 0.09207, ty = -0.061662, tz = 2.52246, cz = 2.418, distance = 0.9324, light =  0.75 },
+		["KulTiran"] = { tx = -0.069, ty = -0.006851, tz = 2.230568, cz = 2.12476, distance = 1.14324, light =  0.75 },
 	}
 };
 
@@ -282,6 +290,7 @@ function CharacterCreate_OnLoad(self)
 	self:RegisterEvent("RACE_FACTION_CHANGE_STARTED");
 	self:RegisterEvent("RACE_FACTION_CHANGE_RESULT");
 	self:RegisterEvent("CLASS_TRIAL_CHARACTER_CREATE_RESULT");
+	self:RegisterEvent("CHARACTER_LIST_UPDATE");
 
 	self:SetSequence(0);
 	self:SetCamera(0);
@@ -291,6 +300,8 @@ function CharacterCreate_OnLoad(self)
 	CharacterCreate.numClasses = 0;
 	CharacterCreate.selectedClass = 0;
 	CharacterCreate.selectedGender = 0;
+
+	self.newAlliedRaces = { };
 
 	CharacterCreate.allianceFramePool = CreateFramePool("CHECKBUTTON", CharCreateRaceButtonsFrame.AllianceRaces, "CharCreateRaceButtonTemplate");
 	CharacterCreate.hordeFramePool = CreateFramePool("CHECKBUTTON", CharCreateRaceButtonsFrame.HordeRaces, "CharCreateRaceButtonTemplate");
@@ -521,6 +532,8 @@ function CharacterCreate_OnEvent(self, event, ...)
 	elseif ( event == "CLASS_TRIAL_CHARACTER_CREATE_RESULT" ) then
 		local result = ...
 		HandleClassTrialCreateResult(result);
+	elseif ( event == "CHARACTER_LIST_UPDATE" ) then
+		CharacterCreate_EvaluateNewAlliedRaces();
 	end
 end
 
@@ -589,7 +602,8 @@ end
 local fixedRaceAtlasNames = {
 	["highmountaintauren"] = "highmountain",
 	["lightforgeddraenei"] = "lightforged",
-	["scourge"] = "undead"
+	["scourge"] = "undead",
+	["zandalaritroll"] = "zandalari",
 };
 
 function GetRaceAtlas(raceName, gender)
@@ -638,6 +652,8 @@ end
 function CharacterCreateEnumerateRaces(modeChange)
 	local races = C_CharacterCreation.GetAvailableRaces();
 
+	local inAlliedRaceMode = C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.AlliedRace;
+
 	if ( #races > MAX_RACES ) then
 		message("Too many races!  Update MAX_RACES");
 		while ( #races > MAX_RACES ) do
@@ -680,6 +696,10 @@ function CharacterCreateEnumerateRaces(modeChange)
 		button.PushedTexture:SetAtlas(atlas);
 		button.nameFrame.text:SetText(name);
 		
+		local isNewAlliedRace = CharacterCreate_IsNewAlliedRace(raceData.raceID);
+		button.NewString:SetShown(isNewAlliedRace);
+		button.NewGlow:SetShown(isNewAlliedRace);
+		
 		local kioskModeData = IsKioskGlueEnabled() and KioskModeSplash_GetModeData();
 		local raceList = kioskModeData and KioskModeSplash_GetRaceList();
 		local disableTexture = button.DisableTexture;
@@ -692,11 +712,11 @@ function CharacterCreateEnumerateRaces(modeChange)
 			button.tooltip = name;
 			disableTexture:Hide();
 		else
-			if (C_CharacterCreation.ShouldShowAlliedRacesButton() and C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.AlliedRace and not IsKioskModeEnabled()) then
+			if (C_CharacterCreation.ShouldShowAlliedRacesButton() and inAlliedRaceMode and not IsKioskModeEnabled()) then
 				button:Enable();
 			else
 				button:Disable();
-				if (C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.AlliedRace and IsKioskModeEnabled()) then
+				if (inAlliedRaceMode and IsKioskModeEnabled()) then
 					hiddenInKiosk = true;
 				end
 			end
@@ -719,7 +739,7 @@ function CharacterCreateEnumerateRaces(modeChange)
 	end
 	
 	if ( PAID_SERVICE_TYPE ) then
-		if ( PAID_SERVICE_TYPE == PAID_FACTION_CHANGE and C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.Normal and C_CharacterCreation.IsRaceClassValid(PANDAREN_RACE_ID, C_PaidServices.GetCurrentClassID())) then
+		if ( PAID_SERVICE_TYPE == PAID_FACTION_CHANGE and not inAlliedRaceMode and C_CharacterCreation.IsRaceClassValid(PANDAREN_RACE_ID, C_PaidServices.GetCurrentClassID())) then
 			PandarenFactionButtons_Show();
 		else
 			PandarenFactionButtons_Hide();
@@ -727,7 +747,7 @@ function CharacterCreateEnumerateRaces(modeChange)
 		CharacterChangeFixup();
 	end
 
-	CharacterCreate_UpdateAlliedRaceButton();
+	CharacterCreate_UpdateRacesToggleButton();
 	CharCreateRaceButtonsFrame.AllianceRaces:Layout();
 	CharCreateRaceButtonsFrame.HordeRaces:Layout();
 	CharCreateRaceButtonsFrame.NeutralRaces:Layout();
@@ -741,6 +761,10 @@ function CharacterCreateEnumerateRaces(modeChange)
 				CharCreateSelectRace(raceID, true);
 			end
 		end
+	end
+
+	if inAlliedRaceMode then
+		CharacterCreate_MarkNewAlliedRacesSeen();
 	end
 end
 
@@ -782,7 +806,7 @@ end
 local function UpdateClassButtonEnabledState(button, classID, classData)
 	local kioskModeData = IsKioskGlueEnabled() and KioskModeSplash_GetModeData();
 	local disableTexture = button.DisableTexture;
-
+	button.PadLock:Hide();
 	if ( classData.enabled == true ) then
 		if (IsKioskGlueEnabled() and (not C_CharacterCreation.IsClassAllowedInKioskMode(classID) or not kioskModeData.classes[classData.fileName])) then
 			button:Disable();
@@ -796,29 +820,41 @@ local function UpdateClassButtonEnabledState(button, classID, classData)
 			disableTexture:Hide();
 		else
 			button:Disable();
-			SetButtonDesaturated(button, true);
-			local validRaces = C_CharacterCreation.GetValidRacesForClass(button.classID);
-			local validRaceNames = {};
-			for i, raceData in ipairs(validRaces) do
-				tinsert(validRaceNames, raceData.name);
-			end
-			local validRaceConcat = table.concat(validRaceNames, ", ");
-			button.tooltip.footer = WrapTextInColorCode(CLASS_DISABLED, "ffff0000") .. "|n|n" .. WrapTextInColorCode(validRaceConcat, "ffff0000");
 			disableTexture:Show();
 		end
+	elseif ( classData.disabledReason == Enum.CreationClassDisabledReason.InvalidForSelectedRace ) then
+		button:Disable();
+		SetButtonDesaturated(button, true);
+		local validRaces = C_CharacterCreation.GetValidRacesForClass(button.classID, Enum.CharacterCreateRaceMode.AllRaces);
+		local validRaceNames = {};
+		for i, raceData in ipairs(validRaces) do
+			tinsert(validRaceNames, raceData.name);
+		end
+		local validRaceConcat = table.concat(validRaceNames, ", ");
+		button.tooltip.footer = WrapTextInColorCode(CLASS_DISABLED, "ffff0000") .. "|n|n" .. WrapTextInColorCode(validRaceConcat, "ffff0000");
+		disableTexture:Show();
+	elseif ( classData.disabledReason == Enum.CreationClassDisabledReason.InvalidForTrialAccount or classData.disabledReason == Enum.CreationClassDisabledReason.InvalidForVeteranAccount ) then
+		button:Disable();
+		SetButtonDesaturated(button, true);
+		local error = button.classID == DEMON_HUNTER_CLASS_ID and CHAR_CREATE_TRIAL_DEMON_HUNTER or CHAR_CREATE_TRIAL;
+		button.tooltip.footer = WrapTextInColorCode(error, "ffff0000") ;
+		button.PadLock:Show();
+		disableTexture:Show();
 	else
 		button:Disable();
 		SetButtonDesaturated(button, true);
 		local reason;
-		if ( classData.disableReason ) then
-			if ( classData.disableReason == LE_DEMON_HUNTER_CREATION_DISABLED_REASON_HAVE_DH ) then
+		if ( classData.disabledReason ) then
+			if ( classData.disabledReason == Enum.CreationClassDisabledReason.BoostIsTooLowLevel ) then
+				reason = DEMON_HUNTER_RESTRICTED_BOOST_IS_TOO_LOW_LEVEL;
+			elseif ( classData.disabledReason == Enum.CreationClassDisabledReason.HaveDemonHunter ) then
 				reason = DEMON_HUNTER_RESTRICTED_HAS_DEMON_HUNTER;
-			elseif ( classData.disableReason == LE_DEMON_HUNTER_CREATION_DISABLED_REASON_NEED_LEVEL_70 ) then
+			elseif ( classData.disabledReason == Enum.CreationClassDisabledReason.NeedLevel70 ) then
 				reason = DEMON_HUNTER_RESTRICTED_NEED_LEVEL_70;
-			elseif ( classData.disableReason == LE_DEMON_HUNTER_INVALID_CLASS_FOR_BOOST) then
-				reason = CANNOT_CREATE_CURRENT_CLASS_WITH_BOOST;
 			end
-		elseif ( classData.fileName ) then
+		end
+
+		if ( not reason and classData.fileName ) then
 			reason = _G[classData.fileName.."_DISABLED"];
 		end
 
@@ -845,7 +881,12 @@ local function SetupClassButton(button, classID, classData)
 end
 
 function CharacterCreateEnumerateClasses()
-	local classes = C_CharacterCreation.GetAvailableClasses();
+	local boostLevel = nil;
+	if CharacterUpgrade_IsCreatedCharacterUpgrade() and CharacterUpgradeFlow.data then
+		boostLevel = CharacterUpgradeFlow.data.level;
+	end
+	
+	local classes = C_CharacterCreation.GetAvailableClasses(boostLevel);
 
 	CharacterCreate.numClasses = #classes;
 
@@ -868,38 +909,6 @@ function CharacterCreateEnumerateClasses()
 
 		SetupClassButton(button, classID, classData);
 	end
-
-	local boostLevel;
-	if CharacterUpgrade_IsCreatedCharacterTrialBoost() then
-		boostLevel = C_CharacterCreation.GetTrialBoostStartingLevel();
-	elseif CharacterUpgrade_IsCreatedCharacterUpgrade() and CharacterUpgradeFlow.data then
-		boostLevel = CharacterUpgradeFlow.data.level;
-	end
-	
-	local demonHunterIsValid = not boostLevel or boostLevel > 100;
-	if (not demonHunterIsValid or not C_CharacterCreation.CanCreateDemonHunter()) then
-        MAX_DISPLAYED_CLASSES_PER_RACE = 11;
-        for button in CharacterCreate.classFramePool:EnumerateActive() do
-            button:SetSize(44, 44);
-        end
-		local demonHunterClassID = C_CharacterCreation.GetClassIDFromName("DEMONHUNTER");
-		local button = FindButtonForClassID(demonHunterClassID);
-		if ( button ) then
-			button:Hide();
-		end
-		CharCreateClassFrame.ClassIcons:Layout();
-		
-		if ( not demonHunterIsValid ) then
-			local selectedClassData = C_CharacterCreation.GetSelectedClass();
-			if selectedClassData and selectedClassData.classID == demonHunterClassID then
-				local warriorClassID = C_CharacterCreation.GetClassIDFromName("WARRIOR");
-				local warriorButton = FindButtonForClassID(warriorClassID);
-				if warriorButton then
-					warriorButton:Click();
-				end
-			end
-		end
-    end
 
 	CharCreateClassFrame.ClassIcons:Layout();
 end
@@ -1119,16 +1128,18 @@ function CharacterCreate_GetValidAlliedRacePaidServiceOptions()
 	return validOptions;
 end
 
-function CharacterCreate_UpdateAlliedRaceButton()
+function CharacterCreate_UpdateRacesToggleButton()
 	local kioskModeHide = IsKioskGlueEnabled() and KioskModeSplash_GetMode() == "newcharacter";
-	local shouldShow = C_CharacterCreation.ShouldShowAlliedRacesButton() and C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.Normal and CharacterCreateFrame.state == "CLASSRACE" and not kioskModeHide;
+	local shouldShow = C_CharacterCreation.ShouldShowAlliedRacesButton() and CharacterCreateFrame.state == "CLASSRACE" and not kioskModeHide;
 
-	if (shouldShow and PAID_SERVICE_TYPE) then
-		local validOptions = CharacterCreate_GetValidAlliedRacePaidServiceOptions();
-		shouldShow = validOptions and #validOptions > 0;
+	if shouldShow then
+		local inAlliedRaceMode = C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.AlliedRace;
+		CharCreateCoreRacesButton:SetShown(inAlliedRaceMode);
+		CharCreateAlliedRacesButton:SetShown(not inAlliedRaceMode);
+	else
+		CharCreateCoreRacesButton:Hide();
+		CharCreateAlliedRacesButton:Hide();
 	end
-
-	CharCreateAlliedRacesButton:SetShown(shouldShow);
 end
 
 function CharacterCreate_OnKeyDown(self, key)
@@ -1165,6 +1176,24 @@ function CharacterCreate_Finish()
 	end
 end
 
+function CharCreateMoreInfoButton_OnLoad(self)
+	local okayButtonRight = CharCreateOkayButton:GetRight();
+	local moreButtonLeft = self:GetLeft();
+	if okayButtonRight > moreButtonLeft then
+		self:SetPoint("BOTTOMLEFT", CharCreateOkayButton, "BOTTOMRIGHT", 5, 0);
+		local fontString = self:GetFontString();
+		fontString:SetWidth(self:GetWidth() - 26);
+		fontString:SetHeight(20);
+	end
+end
+
+function CharCreateMoreInfoButton_OnEnter(self)
+	if self:GetFontString():IsTruncated() then
+		CharacterCreateTooltip:SetOwner(self, "ANCHOR_TOP", 0, -5);
+		CharacterCreateTooltip:SetText(self:GetText());
+	end
+end
+
 function CharacterCreate_Back()
 	if ( CharacterCreateFrame.state == "CUSTOMIZATION" ) then
 		PlaySound(SOUNDKIT.GS_CHARACTER_CREATION_CANCEL);
@@ -1177,7 +1206,7 @@ function CharacterCreate_Back()
 		CharacterCreateNameEdit:Hide();
 		CharacterCreateRandomName:Hide();
 
-		CharacterCreate_UpdateAlliedRaceButton();
+		CharacterCreate_UpdateRacesToggleButton();
 		CharacterCreate_UpdateClassTrialCustomizationFrames();
 
 		--back to awesome gear
@@ -1185,12 +1214,6 @@ function CharacterCreate_Back()
 
 		-- back to normal camera
 		C_CharacterCreation.SetFaceCustomizeCamera(false);
-	elseif (C_CharacterCreation.GetCurrentRaceMode() == Enum.CharacterCreateRaceMode.AlliedRace and (not PAID_SERVICE_TYPE or PAID_SERVICE_TYPE ~= PAID_CHARACTER_CUSTOMIZATION)) then
-		C_CharacterCreation.SetCurrentRaceMode(Enum.CharacterCreateRaceMode.Normal);
-		CharacterCreate_UpdateAlliedRaceButton();	
-		CharCreateRaceButtonsFrame.ClassicBanners:Show();
-		CharCreateRaceButtonsFrame.AlliedRaceBanners:Hide();
-		CharacterCreateEnumerateRaces(true);
 	else
 		if( IsKioskGlueEnabled() ) then
 			PlaySound(SOUNDKIT.GS_CHARACTER_CREATION_CANCEL);
@@ -1226,7 +1249,7 @@ function CharacterCreate_Forward()
 		CharCreatePreviewFrame:Show();
 		CharacterTemplateConfirmDialog:Hide();
 		
-		CharacterCreate_UpdateAlliedRaceButton();
+		CharacterCreate_UpdateRacesToggleButton();
 		CharacterCreate_UpdateClassTrialCustomizationFrames();
 
 		CharCreate_PrepPreviewModels();
@@ -1428,12 +1451,19 @@ function CharacterRace_OnClick(self, id, forceSelect)
 end
 
 function CharCreateAlliedRacesButton_OnClick(self)
-	local raceMode = C_CharacterCreation.GetCurrentRaceMode();
 	C_CharacterCreation.SetCurrentRaceMode(Enum.CharacterCreateRaceMode.AlliedRace);
 	CharCreateRaceButtonsFrame.ClassicBanners:Hide();
 	CharCreateRaceButtonsFrame.AlliedRaceBanners:Show();
-	self:Hide();
 	CharacterCreateEnumerateRaces(true);
+	CharacterCreate_UpdateRacesToggleButton();
+end
+
+function CharCreateCoreRacesButton_OnClick(self)
+	C_CharacterCreation.SetCurrentRaceMode(Enum.CharacterCreateRaceMode.Normal);
+	CharCreateRaceButtonsFrame.ClassicBanners:Show();
+	CharCreateRaceButtonsFrame.AlliedRaceBanners:Hide();
+	CharacterCreateEnumerateRaces(true);
+	CharacterCreate_UpdateRacesToggleButton();
 end
 
 local currentGender;
@@ -2107,12 +2137,23 @@ function CharCreateRaceButton_OnEnter(self)
 	CharacterCreateTooltip:SetOwner(self, "ANCHOR_RIGHT", 8, -5);
 	CharacterCreateTooltip:SetText(raceData.name, 1, 1, 1, 1, true);
 	if (raceData.isAlliedRace) then
+		local INDENTED_WORD_WRAP = true;
 		local hasExpansion, hasAchievement = C_CharacterCreation.GetAlliedRaceCreationRequirements(self.raceID);
 		if (not hasExpansion) then
-			CharacterCreateTooltip:AddLine(CHARACTER_CREATION_REQUIREMENTS_NEED_8_0, RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b, 1, true);
+			CharacterCreateTooltip:AddLine(ALLIED_RACE_UNLOCK_TEXT, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, 1, true);
+			CharacterCreateTooltip:AddLine(string.format(DASH_WITH_TEXT, CHARACTER_CREATION_REQUIREMENTS_NEED_8_0), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b, 1, true, INDENTED_WORD_WRAP);
 		end
 		if (not hasAchievement) then
-			CharacterCreateTooltip:AddLine(CHARACTER_CREATION_REQUIREMENTS_NEED_ACHIEVEMENT, RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b, 1, true);
+			local requirements = C_CharacterCreation.GetAlliedRaceAchievementRequirements(self.raceID);
+			if requirements then
+				-- Add unlock text if we have the expansion, otherwise it would have already been added above
+				if hasExpansion then
+					CharacterCreateTooltip:AddLine(ALLIED_RACE_UNLOCK_TEXT, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, 1, true);
+				end
+				for i, requirement in ipairs(requirements) do
+					CharacterCreateTooltip:AddLine(string.format(DASH_WITH_TEXT, requirement), RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b, 1, true, INDENTED_WORD_WRAP);
+				end
+			end
 		end	
 	end
 end
@@ -2246,7 +2287,9 @@ function CharacterCreate_UpdateCharacterTypeButtons()
 	local raceData = C_CharacterCreation.GetRaceDataByID(C_CharacterCreation.GetSelectedRace());
 	for index, button in ipairs(CharCreateCharacterTypeFrame.typeButtons) do
 		UpdateLevelText(button, classInfo, raceData);
-		if (button.characterType == Enum.CharacterCreateType.TrialBoost) then
+		if (button.characterType == Enum.CharacterCreateType.Normal) then
+			button:SetEnabled(C_CharacterCreation.IsClassAndRaceValidForCharacterCreation(Enum.CharacterCreateType.Normal, classInfo.classID, raceData.raceID));
+		elseif (button.characterType == Enum.CharacterCreateType.TrialBoost) then
 			button:SetEnabled(IsBoostAllowed(classInfo, raceData));
 		end
 	end
@@ -2426,6 +2469,9 @@ end
 function RequirementsFlowMixin:RemoveScripts()
 	self.completeButton:SetScript("OnEnter", nil);
 	self.completeButton:SetScript("OnLeave", nil);
+	if GlueTooltip:GetOwner() == self.completeButton then
+		self:HideTooltip();
+	end
 end
 
 function RequirementsFlowMixin:DisplayTooltip()
@@ -2556,4 +2602,52 @@ end
 
 function CharacterCreate_UpdatePreview()
 	CharacterCreateNameEdit:SetEnabled(not isAlliedRacePreview);
+end
+
+function CharacterCreate_MarkNewAlliedRacesSeen()
+	for i, raceID in ipairs(CharacterCreate.newAlliedRaces) do
+		SetCVarBitfield("seenAlliedRaceUnlocks", raceID, true);
+	end
+	wipe(CharacterCreate.newAlliedRaces);
+	CharacterCreate_RefreshNewAlliedRaces();
+end
+
+function CharacterCreate_EvaluateNewAlliedRaces()
+	wipe(CharacterCreate.newAlliedRaces);
+
+	-- first time on this machine? Set the first bit (which would evaluate to Human, but Humans are not an allied race so it's fine)
+	local firstLogin = GetCVar("seenAlliedRaceUnlocks") == "0";
+	if firstLogin then
+		SetCVarBitfield("seenAlliedRaceUnlocks", 1, true);
+	end
+
+	local races = C_CharacterCreation.GetAvailableRaces(Enum.CharacterCreateRaceMode.AlliedRace);
+	for i, raceInfo in ipairs(races) do
+		if raceInfo.enabled then
+			if firstLogin then
+				SetCVarBitfield("seenAlliedRaceUnlocks", raceInfo.raceID, true);
+			elseif not GetCVarBitfield("seenAlliedRaceUnlocks", raceInfo.raceID) then
+				tinsert(CharacterCreate.newAlliedRaces, raceInfo.raceID);
+			end
+		end
+	end
+	
+	CharacterCreate_RefreshNewAlliedRaces();
+end
+
+function CharacterCreate_RefreshNewAlliedRaces()
+	local hasNewAlliedRaces = #CharacterCreate.newAlliedRaces > 0;
+	CharSelectCreateCharacterButton.NewString:SetShown(hasNewAlliedRaces);
+	CharSelectCreateCharacterButton.NewGlow:SetShown(hasNewAlliedRaces);
+	CharCreateAlliedRacesButton.NewString:SetShown(hasNewAlliedRaces);
+	CharCreateAlliedRacesButton.NewGlow:SetShown(hasNewAlliedRaces);
+end
+
+function CharacterCreate_IsNewAlliedRace(raceID)
+	for i, newRaceID in ipairs(CharacterCreate.newAlliedRaces) do
+		if raceID == newRaceID then
+			return true;
+		end
+	end
+	return false;
 end

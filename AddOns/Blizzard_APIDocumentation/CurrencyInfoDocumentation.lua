@@ -7,6 +7,20 @@ local CurrencyInfo =
 	Functions =
 	{
 		{
+			Name = "DoesWarModeBonusApply",
+			Type = "Function",
+
+			Arguments =
+			{
+				{ Name = "currencyID", Type = "number", Nilable = false },
+			},
+
+			Returns =
+			{
+				{ Name = "warModeApplies", Type = "bool", Nilable = true },
+			},
+		},
+		{
 			Name = "GetAzeriteCurrencyID",
 			Type = "Function",
 
@@ -110,6 +124,9 @@ local CurrencyInfo =
 			{
 				{ Name = "currencyType", Type = "number", Nilable = true },
 				{ Name = "quantity", Type = "number", Nilable = true },
+				{ Name = "quantityChange", Type = "number", Nilable = true },
+				{ Name = "quantityGainSource", Type = "number", Nilable = true },
+				{ Name = "quantityLostSource", Type = "number", Nilable = true },
 			},
 		},
 		{

@@ -14,8 +14,9 @@ function AlertFrameSystems_Register()
 	GarrisonTalentAlertSystem = AlertFrame:AddSimpleAlertFrameSubSystem("GarrisonTalentAlertFrameTemplate", GarrisonTalentAlertFrame_SetUp);
 	WorldQuestCompleteAlertSystem = AlertFrame:AddSimpleAlertFrameSubSystem("WorldQuestCompleteAlertFrameTemplate", WorldQuestCompleteAlertFrame_SetUp, WorldQuestCompleteAlertFrame_Coalesce);
 	LegendaryItemAlertSystem = AlertFrame:AddSimpleAlertFrameSubSystem("LegendaryItemAlertFrameTemplate", LegendaryItemAlertFrame_SetUp);
-	NewPetAlertSystem = AlertFrame:AddSimpleAlertFrameSubSystem("NewPetAlertFrameTemplate", NewPetAlertFrame_SetUp);
-	NewMountAlertSystem = AlertFrame:AddSimpleAlertFrameSubSystem("NewMountAlertFrameTemplate", NewMountAlertFrame_SetUp);
+	NewPetAlertSystem = AlertFrame:AddQueuedAlertFrameSubSystem("NewPetAlertFrameTemplate", NewPetAlertFrame_SetUp);
+	NewMountAlertSystem = AlertFrame:AddQueuedAlertFrameSubSystem("NewMountAlertFrameTemplate", NewMountAlertFrame_SetUp); 
+	NewToyAlertSystem = AlertFrame:AddQueuedAlertFrameSubSystem("NewToyAlertFrameTemplate", NewToyAlertFrame_SetUp); 
 end
 
 -- [[ GuildChallengeAlertFrame ]] --
@@ -468,16 +469,16 @@ LOOTWONALERTFRAME_VALUES={
 }
 
 -- NOTE - This may also be called for an externally created frame. (E.g. bonus roll has its own frame)
-function LootWonAlertFrame_SetUp(self, itemLink, quantity, rollType, roll, specID, isCurrency, showFactionBG, lootSource, lessAwesome, isUpgraded, wonRoll, showRatedBG)
+function LootWonAlertFrame_SetUp(self, itemLink, quantity, rollType, roll, specID, isCurrency, showFactionBG, lootSource, lessAwesome, isUpgraded, wonRoll, showRatedBG, isSecondaryResult)
 	local itemName, itemHyperLink, itemRarity, itemTexture, _;
 	if (isCurrency) then
-		local currencyID = C_CurrencyInfo.GetCurrencyIDFromLink(itemLink); 
+		local currencyID = C_CurrencyInfo.GetCurrencyIDFromLink(itemLink);
 		itemName, _, itemTexture, _, _, _, _, itemRarity = GetCurrencyInfo(itemLink);
-		itemName, itemTexture, quantity, itemRarity = CurrencyContainerUtil.GetCurrencyContainerInfoForAlert(currencyID, quantity, itemName, itemTexture, itemRarity); 
+		itemName, itemTexture, quantity, itemRarity = CurrencyContainerUtil.GetCurrencyContainerInfoForAlert(currencyID, quantity, itemName, itemTexture, itemRarity);
 		if ( lootSource == LOOT_SOURCE_GARRISON_CACHE ) then
 			itemName = format(GARRISON_RESOURCES_LOOT, quantity);
 		else
-			if (quantity > 1) then 
+			if (quantity > 1) then
 				itemName = format(CURRENCY_QUANTITY_TEMPLATE, quantity, itemName);
 			end
 		end
@@ -543,7 +544,11 @@ function LootWonAlertFrame_SetUp(self, itemLink, quantity, rollType, roll, specI
 		self.Icon:SetDrawLayer("BORDER");
 	end
 
-	self.Label:SetText(windowInfo.labelText);
+	if isSecondaryResult then
+		self.Label:SetText(YOU_RECEIVED_LABEL);
+	else
+		self.Label:SetText(windowInfo.labelText);
+	end
 	self.Label:SetPoint("TOPLEFT", self.Icon, "TOPRIGHT", windowInfo.labelOffsetX, windowInfo.labelOffsetY);
 
 	self.isCurrency = isCurrency;
@@ -918,7 +923,7 @@ function NewRecipeLearnedAlertFrame_GetStarTextureFromRank(rank)
 end
 
 function NewRecipeLearnedAlertFrame_SetUp(self, recipeID)
-	local tradeSkillID, skillLineName = C_TradeSkillUI.GetTradeSkillLineForRecipe(recipeID);
+	local tradeSkillID, skillLineName, parentTradeSkillID = C_TradeSkillUI.GetTradeSkillLineForRecipe(recipeID);
 	if tradeSkillID then
 		local recipeName = GetSpellInfo(recipeID);
 		if recipeName then
@@ -936,7 +941,7 @@ function NewRecipeLearnedAlertFrame_SetUp(self, recipeID)
 			else
 				self.Name:SetText(recipeName);
 			end
-			self.tradeSkillID = tradeSkillID;
+			self.tradeSkillID = parentTradeSkillID or tradeSkillID;
 			self.recipeID = recipeID;
 			return true;
 		end
@@ -959,7 +964,7 @@ NewRecipeLearnedAlertSystem = AlertFrame:AddQueuedAlertFrameSubSystem("NewRecipe
 
 -- [[WorldQuestCompleteAlertFrame ]] --
 function WorldQuestCompleteAlertFrame_GetIconForQuestID(questID)
-	local tagID, tagName, worldQuestType, rarity, isElite, tradeskillLineIndex, displayTimeLeft = GetQuestTagInfo(questID);
+	local tagID, tagName, worldQuestType, rarity, isElite, tradeskillLineIndex = GetQuestTagInfo(questID);
 
 	if ( worldQuestType == LE_QUEST_TAG_TYPE_PVP ) then
 		return "Interface\\Icons\\achievement_arena_2v2_1";
@@ -1114,4 +1119,29 @@ function NewMountAlertFrameMixin:OnClick(button, down)
 
 	SetCollectionsJournalShown(true, COLLECTIONS_JOURNAL_TAB_INDEX_MOUNTS);
 	MountJournal_SelectByMountID(self.mountID);
+end
+
+-- [[ NewToyAlertFrame ]] --
+
+function NewToyAlertFrame_SetUp(frame, toyID)
+	frame:SetUp(toyID);
+end
+
+NewToyAlertFrameMixin = CreateFromMixins(ItemAlertFrameMixin);
+
+function NewToyAlertFrameMixin:SetUp(toyID)
+	self.toyID = toyID;
+
+	local itemID, toyName, icon, isFavorite, hasFanfare, itemQuality = C_ToyBox.GetToyInfo(self.toyID);
+	self:SetUpDisplay(icon, itemQuality, toyName, YOU_EARNED_LABEL);
+end
+
+function NewToyAlertFrameMixin:OnClick(button, down)
+	if AlertFrame_OnClick(self, button, down) then
+		return;
+	end
+
+	CollectionsJournal_LoadUI();
+	ToyBox.autoPageToCollectedToyID = self.toyID;
+	SetCollectionsJournalShown(true, COLLECTIONS_JOURNAL_TAB_INDEX_TOYS);
 end

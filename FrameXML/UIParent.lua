@@ -1,9 +1,6 @@
 TOOLTIP_UPDATE_TIME = 0.2;
 BOSS_FRAME_CASTBAR_HEIGHT = 16;
 
--- Mirror of the same Variable in StoreSecureUI.lua and GlueParent.lua
-WOW_GAMES_CATEGORY_ID = 33;
-
 -- Alpha animation stuff
 FADEFRAMES = {};
 FLASHFRAMES = {};
@@ -419,6 +416,9 @@ function UIParent_OnLoad(self)
 
 	-- Event(s) for Azerite Empowered Items
 	self:RegisterEvent("RESPEC_AZERITE_EMPOWERED_ITEM_OPENED");
+
+	-- Events for Reporting SYSTEM
+	self:RegisterEvent("REPORT_PLAYER_RESULT");
 end
 
 function UIParent_OnShow(self)
@@ -1062,7 +1062,7 @@ local function PlayBattlefieldBanner(self)
 		local bannerName, bannerDescription;
 
 		if (C_PvP.IsInBrawl()) then
-			local brawlInfo = C_PvP.GetBrawlInfo();
+			local brawlInfo = C_PvP.GetActiveBrawlInfo();
 			if (brawlInfo) then
 				bannerName = brawlInfo.name;
 				bannerDescription = brawlInfo.shortDescription;
@@ -1206,6 +1206,8 @@ function UIParent_OnEvent(self, event, ...)
 	elseif ( event == "PLAYER_ALIVE" or event == "RAISED_AS_GHOUL" ) then
 		StaticPopup_Hide("DEATH");
 		StaticPopup_Hide("RESURRECT_NO_SICKNESS");
+		StaticPopup_Hide("RESURRECT_NO_TIMER");
+		StaticPopup_Hide("RESURRECT");
 		if ( UnitIsGhost("player") ) then
 			GhostFrame:Show();
 		else
@@ -1288,7 +1290,7 @@ function UIParent_OnEvent(self, event, ...)
 		StaticPopup_Hide("CAMP");
 		StaticPopup_Hide("QUIT");
 	elseif ( event == "LOOT_BIND_CONFIRM" ) then
-		local texture, item, quantity, quality, locked = GetLootSlotInfo(arg1);
+		local texture, item, quantity, currencyID, quality, locked = GetLootSlotInfo(arg1);
 		local dialog = StaticPopup_Show("LOOT_BIND", ITEM_QUALITY_COLORS[quality].hex..item.."|r");
 		if ( dialog ) then
 			dialog.data = arg1;
@@ -1380,6 +1382,19 @@ function UIParent_OnEvent(self, event, ...)
 		if ( GetReleaseTimeRemaining() > 0 or GetReleaseTimeRemaining() == -1 ) then
 			StaticPopup_Show("DEATH");
 		end
+		
+		local alreadyShowingSummonPopup = StaticPopup_Visible("CONFIRM_SUMMON_STARTING_AREA") or StaticPopup_Visible("CONFIRM_SUMMON_SCENARIO") or StaticPopup_Visible("CONFIRM_SUMMON")
+		if ( not alreadyShowingSummonPopup and C_SummonInfo.GetSummonConfirmTimeLeft() > 0 ) then
+			local summonReason = C_SummonInfo.GetSummonReason();
+			local isSkippingStartingArea = C_SummonInfo.IsSummonSkippingStartExperience();
+			if ( isSkippingStartingArea ) then -- check if skiping start experience
+				StaticPopup_Show("CONFIRM_SUMMON_STARTING_AREA");
+			elseif (summonType == LE_SUMMON_REASON_SCENARIO) then
+				StaticPopup_Show("CONFIRM_SUMMON_SCENARIO");
+			else
+				StaticPopup_Show("CONFIRM_SUMMON");
+			end
+		end
 
 		-- display loot specialization setting
 		PrintLootSpecialization();
@@ -1396,7 +1411,7 @@ function UIParent_OnEvent(self, event, ...)
 				elseif spellConfirmation.confirmType == LE_SPELL_CONFIRMATION_PROMPT_TYPE_SIMPLE_WARNING then
 					StaticPopup_Show("SPELL_CONFIRMATION_WARNING", spellConfirmation.text, nil, spellConfirmation.spellID);
 				elseif spellConfirmation.confirmType == LE_SPELL_CONFIRMATION_PROMPT_TYPE_BONUS_ROLL then
-					BonusRollFrame_StartBonusRoll(spellConfirmation.spellID, spellConfirmation.text, spellConfirmation.duration, spellConfirmation.currencyID, spellConfirmation.currencyCost);
+					BonusRollFrame_StartBonusRoll(spellConfirmation.spellID, spellConfirmation.text, spellConfirmation.duration, spellConfirmation.currencyID, spellConfirmation.currencyCost, spellConfirmation.difficultyID);
 				end
 			end
 		end
@@ -1899,7 +1914,7 @@ function UIParent_OnEvent(self, event, ...)
 				end
 				self.newToys[itemID] = true;
 
-				self.mostRecentCollectedToyID = itemID;
+				self.autoPageToCollectedToyID = itemID;
 				SetCVar("petJournalTab", 3);
 			end
 		end
@@ -1940,8 +1955,8 @@ function UIParent_OnEvent(self, event, ...)
 	-- Quest Choice trigger event
 
 	elseif ( event == "QUEST_CHOICE_UPDATE" ) then
-		local uiTextureKitID = select(4, GetQuestChoiceInfo());
-		if (uiTextureKitID and uiTextureKitID ~= 0) then
+		local choiceInfo = C_QuestChoice.GetQuestChoiceInfo();
+		if (choiceInfo.uiTextureKitID and choiceInfo.uiTextureKitID ~= 0) then
 			WarboardQuestChoice_LoadUI();
 			WarboardQuestChoiceFrame:TryShow();
 		else
@@ -2073,12 +2088,12 @@ function UIParent_OnEvent(self, event, ...)
 	elseif (event == "ISLAND_COMPLETED") then
 		IslandsPartyPose_LoadUI();
 		local mapID, winner = ...;
-		IslandsPartyPoseFrame:LoadScreenData(mapID, winner);
+		IslandsPartyPoseFrame:LoadScreen(mapID, winner);
 		ShowUIPanel(IslandsPartyPoseFrame);
 	elseif (event == "WARFRONT_COMPLETED") then
 		WarfrontsPartyPose_LoadUI();
 		local mapID, winner = ...;
-		WarfrontsPartyPoseFrame:LoadScreenData(mapID, winner);
+		WarfrontsPartyPoseFrame:LoadScreen(mapID, winner);
 		ShowUIPanel(WarfrontsPartyPoseFrame);
 	-- Event(s) for Azerite Respec
 	elseif (event == "RESPEC_AZERITE_EMPOWERED_ITEM_OPENED") then
@@ -2087,6 +2102,16 @@ function UIParent_OnEvent(self, event, ...)
 	elseif (event == "ISLANDS_QUEUE_OPEN") then
 		IslandsQueue_LoadUI(); 
 		ShowUIPanel(IslandsQueueFrame); 
+	-- Events for Reporting system
+	elseif (event == "REPORT_PLAYER_RESULT") then
+		local success = ...;
+		if (success) then
+			UIErrorsFrame:AddExternalErrorMessage(GERR_REPORT_SUBMITTED_SUCCESSFULLY);
+			DEFAULT_CHAT_FRAME:AddMessage(COMPLAINT_ADDED);
+		else
+			UIErrorsFrame:AddExternalErrorMessage(GERR_REPORT_SUBMISSION_FAILED);
+			DEFAULT_CHAT_FRAME:AddMessage(ERR_REPORT_SUBMISSION_FAILED);
+		end
 	end
 end
 
@@ -2372,15 +2397,8 @@ function FramePositionDelegate:ShowUIPanel(frame, force)
 		end
 	end
 
-	-- check if the UI fits due to scaling issues
 	if ( GetUIPanelWindowInfo(frame, "checkFit") == 1 ) then
-		local horizRatio = UIParent:GetWidth() / GetUIPanelWidth(frame);
-		local vertRatio = UIParent:GetHeight() / GetUIPanelHeight(frame);
-		if ( horizRatio < 1 or vertRatio < 1 ) then
-			frame:SetScale(min(horizRatio, vertRatio));
-		else
-			frame:SetScale(1);
-		end
+		self:UpdateScaleForFit(frame);
 	end
 
 	-- If we have a "center" frame open, only listen to other "center" open requests
@@ -2797,7 +2815,21 @@ function FramePositionDelegate:UpdateUIPanelPositions(currentFrame)
 		frame:Raise();
 	end
 
+	if ( currentFrame and GetUIPanelWindowInfo(currentFrame, "checkFit") == 1 ) then
+		self:UpdateScaleForFit(currentFrame);
+	end
+
 	self.updatingPanels = nil;
+end
+
+function FramePositionDelegate:UpdateScaleForFit(frame)
+	local horizRatio = UIParent:GetWidth() / GetUIPanelWidth(frame);
+	local vertRatio = UIParent:GetHeight() / GetUIPanelHeight(frame);
+	if ( horizRatio < 1 or vertRatio < 1 ) then
+		frame:SetScale(min(horizRatio, vertRatio));
+	else
+		frame:SetScale(1);
+	end
 end
 
 function FramePositionDelegate:UIParentManageFramePositions()
@@ -4201,10 +4233,10 @@ function UpdateInviteConfirmationDialogs()
 	local confirmationType, name, guid, rolesInvalid, willConvertToRaid = GetInviteConfirmationInfo(firstInvite);
 	local text = "";
 	if ( confirmationType == LE_INVITE_CONFIRMATION_REQUEST ) then
-		local suggesterGuid, suggesterName, relationship, isQuickJoin = GetInviteReferralInfo(firstInvite);
+		local suggesterGuid, suggesterName, relationship, isQuickJoin, clubId = C_PartyInfo.GetInviteReferralInfo(firstInvite);
 
 		--If we ourselves have a relationship with this player, we'll just act as if they asked through us.
-		local _, color, selfRelationship, playerLink = SocialQueueUtil_GetRelationshipInfo(guid, name);
+		local _, color, selfRelationship, playerLink = SocialQueueUtil_GetRelationshipInfo(guid, name, clubId);
 		local safeLink = playerLink and "["..playerLink.."]" or name;
 
 		if ( isQuickJoin and selfRelationship and GetCVarBool("autoAcceptQuickJoinRequests") ) then
@@ -4213,7 +4245,14 @@ function UpdateInviteConfirmationDialogs()
 		end
 
 		if ( selfRelationship ) then
-			if ( isQuickJoin ) then
+			local clubLink = clubId and GetCommunityLink(clubId) or nil;
+			if ( clubLink and selfRelationship == "club" ) then
+				if ( isQuickJoin ) then
+					text = text..INVITE_CONFIRMATION_REQUEST_FROM_COMMUNITY_QUICKJOIN:format(color..safeLink..FONT_COLOR_CODE_CLOSE, clubLink);
+				else
+					text = text..INVITE_CONFIRMATION_REQUEST_FROM_COMMUNITY:format(color..name..FONT_COLOR_CODE_CLOSE, clubLink);
+				end
+			elseif ( isQuickJoin ) then
 				text = text..INVITE_CONFIRMATION_REQUEST_QUICKJOIN:format(color..safeLink..FONT_COLOR_CODE_CLOSE);
 			else
 				text = text..INVITE_CONFIRMATION_REQUEST:format(color..name..FONT_COLOR_CODE_CLOSE);
@@ -4221,17 +4260,23 @@ function UpdateInviteConfirmationDialogs()
 		elseif ( suggesterGuid ) then
 			suggesterName = GetSocialColoredName(suggesterName, suggesterGuid);
 
-			if ( relationship == LE_INVITE_CONFIRMATION_RELATION_FRIEND ) then
+			if ( relationship == Enum.PartyRequestJoinRelation.Friend ) then
 				if ( isQuickJoin ) then
 					text = text..INVITE_CONFIRMATION_REQUEST_FRIEND_QUICKJOIN:format(suggesterName, color..safeLink..FONT_COLOR_CODE_CLOSE);
 				else
 					text = text..INVITE_CONFIRMATION_REQUEST_FRIEND:format(suggesterName, name);
 				end
-			elseif ( relationship == LE_INVITE_CONFIRMATION_RELATION_GUILD ) then
+			elseif ( relationship == Enum.PartyRequestJoinRelation.Guild ) then
 				if ( isQuickJoin ) then
 					text = text..string.format(INVITE_CONFIRMATION_REQUEST_GUILD_QUICKJOIN, suggesterName, color..safeLink..FONT_COLOR_CODE_CLOSE);
 				else
 					text = text..string.format(INVITE_CONFIRMATION_REQUEST_GUILD, suggesterName, name);
+				end
+			elseif ( relationship == Enum.PartyRequestJoinRelation.Club ) then
+				if ( isQuickJoin ) then
+					text = text..INVITE_CONFIRMATION_REQUEST_COMMUNITY_QUICKJOIN:format(suggesterName, color..safeLink..FONT_COLOR_CODE_CLOSE);
+				else
+					text = text..INVITE_CONFIRMATION_REQUEST_COMMUNITY:format(suggesterName, name);
 				end
 			else
 				if ( isQuickJoin ) then
@@ -4248,7 +4293,7 @@ function UpdateInviteConfirmationDialogs()
 			end
 		end
 	elseif ( confirmationType == LE_INVITE_CONFIRMATION_SUGGEST ) then
-		local suggesterGuid, suggesterName, relationship, isQuickJoin = GetInviteReferralInfo(firstInvite);
+		local suggesterGuid, suggesterName, relationship, isQuickJoin = C_PartyInfo.GetInviteReferralInfo(firstInvite);
 		suggesterName = GetSocialColoredName(suggesterName, suggesterGuid);
 		name = GetSocialColoredName(name, guid);
 
@@ -4790,8 +4835,8 @@ function SetDoubleGuildTabardTextures(unit, leftEmblemTexture, rightEmblemTextur
 end
 
 function SetGuildTabardTextures(emblemSize, columns, offset, unit, emblemTexture, backgroundTexture, borderTexture, tabardData)
-	local bkgR, bkgG, bkgB, borderR, borderG, borderB, emblemR, emblemG, emblemB, emblemFilename;
-	if ( tabardData ) then
+	local bkgR, bkgG, bkgB, borderR, borderG, borderB, emblemR, emblemG, emblemB, emblemFileID, emblemIndex;
+	if ( tabardData )  then
 		bkgR = tabardData[1];
 		bkgG = tabardData[2];
 		bkgB = tabardData[3];
@@ -4801,11 +4846,12 @@ function SetGuildTabardTextures(emblemSize, columns, offset, unit, emblemTexture
 		emblemR = tabardData[7];
 		emblemG = tabardData[8];
 		emblemB = tabardData[9];
-		emblemFilename = tabardData[10];
+		emblemFileID = tabardData[10];
+		emblemIndex = tabardData[11];
 	else
-		bkgR, bkgG, bkgB, borderR, borderG, borderB, emblemR, emblemG, emblemB, emblemFilename = GetGuildLogoInfo(unit);
+		bkgR, bkgG, bkgB, borderR, borderG, borderB, emblemR, emblemG, emblemB, emblemFileID, emblemIndex = GetGuildLogoInfo(unit);
 	end
-	if ( emblemFilename ) then
+	if ( emblemFileID ) then
 		if ( backgroundTexture ) then
 			backgroundTexture:SetVertexColor(bkgR / 255, bkgG / 255, bkgB / 255);
 		end
@@ -4813,16 +4859,14 @@ function SetGuildTabardTextures(emblemSize, columns, offset, unit, emblemTexture
 			borderTexture:SetVertexColor(borderR / 255, borderG / 255, borderB / 255);
 		end
 		if ( emblemSize ) then
-			local index = emblemFilename:match("([%d]+)");
-			if ( index) then
-				index = tonumber(index);
-				local xCoord = mod(index, columns) * emblemSize;
-				local yCoord = floor(index / columns) * emblemSize;
+			if ( emblemIndex) then
+				local xCoord = mod(emblemIndex, columns) * emblemSize;
+				local yCoord = floor(emblemIndex / columns) * emblemSize;
 				emblemTexture:SetTexCoord(xCoord + offset, xCoord + emblemSize - offset, yCoord + offset, yCoord + emblemSize - offset);
 			end
 			emblemTexture:SetVertexColor(emblemR / 255, emblemG / 255, emblemB / 255);
 		elseif ( emblemTexture ) then
-			emblemTexture:SetTexture(emblemFilename);
+			emblemTexture:SetTexture(emblemFileID);
 			emblemTexture:SetVertexColor(emblemR / 255, emblemG / 255, emblemB / 255);
 		end
 	else

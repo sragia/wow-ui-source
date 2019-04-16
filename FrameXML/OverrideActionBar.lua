@@ -84,16 +84,32 @@ function OverrideActionBar_OnEvent(self, event, ...)
 	elseif ( event == "PLAYER_XP_UPDATE" ) then
 		OverrideActionBar_UpdateXpBar();
 	elseif ( event == "UNIT_ENTERED_VEHICLE" ) then
-		OverrideActionBar_CalcSize();
+		OverrideActionBar_UpdateSkin();
 	elseif ( event == "UNIT_ENTERING_VEHICLE" ) then
 		self.HasExit, self.HasPitch = select(6, ...);
 	end
 end
 
 function OverrideActionBar_OnShow(self)
-	local anchorX, anchorY = OverrideActionBar_GetMicroButtonAnchor();
-	UpdateMicroButtonsParent(OverrideActionBar);
-	MoveMicroButtons("BOTTOMLEFT", OverrideActionBar, "BOTTOMLEFT", anchorX, anchorY, true);
+	OverrideActionBar_UpdateMicroButtons();
+end
+
+function OverrideActionBar_UpdateMicroButtons()
+	if ActionBarController_GetCurrentActionBarState() == LE_ACTIONBAR_STATE_OVERRIDE then
+		local anchorX, anchorY = OverrideActionBar_GetMicroButtonAnchor();
+		UpdateMicroButtonsParent(OverrideActionBar);
+		MoveMicroButtons("BOTTOMLEFT", OverrideActionBar, "BOTTOMLEFT", anchorX, anchorY, true);
+	end
+end
+
+function OverrideActionBar_UpdateSkin()
+	-- For now, a vehicle has precedence over override bars (hopefully designers make it so these never conflict)
+	if ( HasVehicleActionBar() ) then
+		OverrideActionBar_Setup(UnitVehicleSkin("player"), GetVehicleBarIndex());
+		OverrideActionBar_UpdateMicroButtons();
+	else
+		OverrideActionBar_Setup(GetOverrideBarSkin(), GetOverrideBarIndex());
+	end
 end
 
 function OverrideActionBar_SetSkin(skin)
@@ -147,13 +163,13 @@ end
 
 
 function OverrideActionBar_GetMicroButtonAnchor()
-	local x, y = 548, 43;
+	local x, y = 543, 43;
 	if OverrideActionBar.HasExit and OverrideActionBar.HasPitch then
-		x = 631;
+		x = 626;
 	elseif OverrideActionBar.HasPitch then
-		x = 635;
+		x = 630;
 	elseif OverrideActionBar.HasExit then
-		x = 543;
+		x = 538;
 	end
 	return x,y
 end
