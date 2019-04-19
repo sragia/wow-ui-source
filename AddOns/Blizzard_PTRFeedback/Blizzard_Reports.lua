@@ -251,6 +251,9 @@ function PTR_IssueReporter.CreateReports()
     azeriteEssenceReport:AttachIconViewer("ID", GetIconFromAzeriteEssenceID)
     
     azeriteEssenceReport:AddDataCollection(baseCollectors + 1, collector.OpenEndedQuestion, "What was the issue with this Azerite Essence?")
+    -- ID and comment are Inverted.  Needs to be fixed before 8.3.
+    azeriteEssenceReport:AddDataCollection(baseCollectors + 2, collector.FromDataPackage, "ID") 
+
     azeriteEssenceReport:RegisterPopEvent(event.Tooltip, tooltips.azerite)
     
     ----------------------------------------------------------------------------------------------------

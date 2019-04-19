@@ -239,7 +239,7 @@ function CommunitiesListMixin:Update()
 				end
 			end
 			
-			if not isInGuild and displayIndex == 0 then
+			if not isInGuild and displayIndex == 0 and C_ClubFinder.ShouldShowClubFinder() then
 				button:SetGuildFinder();
 				button:SetFocused(self:GetCommunitiesFrame():GetDisplayMode() == COMMUNITIES_FRAME_DISPLAY_MODES.GUILD_FINDER);
 				button:Show();
@@ -254,7 +254,7 @@ function CommunitiesListMixin:Update()
 				button:Show();
 				usedHeight = usedHeight + height;
 				shouldFindCommunityEntry = false;
-			elseif shouldAddJoinCommunityEntry and C_ClubFinder.ShouldShowClubFinder() then 
+			elseif shouldAddJoinCommunityEntry then 
 				button:SetAddCommunity();
 				button:Show(); 
 				usedHeight = usedHeight + height; 
